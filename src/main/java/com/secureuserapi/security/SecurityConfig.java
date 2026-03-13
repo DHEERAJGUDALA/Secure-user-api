@@ -1,5 +1,6 @@
 package com.secureuserapi.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +15,9 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -78,9 +81,45 @@ public class SecurityConfig {
             .authenticationProvider(authenticationProvider())
 
             // Add JWT filter BEFORE the default username/password filter
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+
+            // Wire custom 401 / 403 handlers so the response is always structured JSON
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(authenticationEntryPoint())
+                .accessDeniedHandler(accessDeniedHandler())
+            );
 
         return http.build();
+    }
+
+    /**
+     * Called when a request is UNAUTHENTICATED (no token or invalid token).
+     * Returns 401 with a JSON body instead of Spring's default blank 403.
+     */
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) -> {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                {"status":401,"error":"Unauthorized","message":"Authentication required","path":"%s"}
+                """.formatted(request.getRequestURI()));
+        };
+    }
+
+    /**
+     * Called when a request is AUTHENTICATED but lacks the required role.
+     * Returns 403 with a JSON body instead of Spring's default blank response.
+     */
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) -> {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                {"status":403,"error":"Forbidden","message":"You do not have permission to access this resource","path":"%s"}
+                """.formatted(request.getRequestURI()));
+        };
     }
 
     /**

@@ -2,6 +2,7 @@ package com.secureuserapi.controller;
 
 import com.secureuserapi.dto.AuthResponse;
 import com.secureuserapi.dto.LoginRequest;
+import com.secureuserapi.dto.RefreshRequest;
 import com.secureuserapi.dto.RegisterRequest;
 import com.secureuserapi.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,19 +50,15 @@ public class AuthController {
 
     /**
      * Refresh access token using a valid refresh token.
-     * Client sends refresh token in Authorization header.
+     * Client sends refresh token in the request body.
+     *
+     * Design note: accepting the refresh token in the request body is the
+     * conventional approach (used by Google, Auth0, etc.). The Authorization
+     * header is reserved for access tokens.
      */
     @PostMapping("/refresh")
     @Operation(summary = "Refresh token", description = "Get new access token using refresh token")
-    public ResponseEntity<AuthResponse> refresh(
-            @RequestHeader("Authorization") String authHeader
-    ) {
-        // Extract token from "Bearer <token>"
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        String refreshToken = authHeader.substring(7);
-        return ResponseEntity.ok(authService.refreshToken(refreshToken));
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request.refreshToken()));
     }
 }
