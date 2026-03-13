@@ -52,6 +52,12 @@ public class User implements UserDetails {
         updatedAt = LocalDateTime.now();
     }
     // ─── UserDetails contract ───────────────────────────────────────────────
+
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // Spring Security expects "ROLE_" prefix for role-based checks
