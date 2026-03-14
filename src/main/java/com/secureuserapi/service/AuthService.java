@@ -43,6 +43,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final EmailService emailService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -63,6 +64,9 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+
+        // Fire-and-forget — runs on "async-" thread, HTTP thread continues immediately
+        emailService.sendWelcomeEmail(user);
 
         // Generate tokens immediately after registration — user is logged in
         String accessToken = jwtService.generateAccessToken(user);
